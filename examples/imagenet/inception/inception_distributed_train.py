@@ -148,11 +148,10 @@ def train(target, dataset, cluster_spec, ctx):
                                       epsilon=RMSPROP_EPSILON)
 
       if FLAGS.input_mode == 'spark':
-        def feed_dict(mgr, batch_size):
-          tmp = TFNode.next_batch(mgr, batch_size)
-          # extract TFRecords, since tmp array is [(TFRecord, None)]
+        def feed_dict(feed_batch):
+          # extract TFRecords, since feed_batch is [(TFRecord, None)]
           tfrecords = []
-          for elem in tmp:
+          for elem in feed_batch:
             tfrecords.append(str(elem[0]))
           return tfrecords
 
@@ -310,11 +309,12 @@ def train(target, dataset, cluster_spec, ctx):
       # specified interval. Note that the summary_op and train_op never run
       # simultaneously in order to prevent running out of GPU memory.
       next_summary_time = time.time() + FLAGS.save_summaries_secs
+      tf_feed = TFNode.DataFeed(ctx.mgr)
       while not sv.should_stop():
         try:
           start_time = time.time()
           if FLAGS.input_mode == 'spark':
-            tmp = feed_dict(ctx.mgr, FLAGS.batch_size/FLAGS.num_preprocess_threads)
+            tmp = feed_dict(tf_feed.next_batch(FLAGS.batch_size/FLAGS.num_preprocess_threads))
             feed = {batch: tmp}
             loss_value, step = sess.run([train_op, global_step], feed_dict=feed)
           else:
@@ -347,8 +347,8 @@ def train(target, dataset, cluster_spec, ctx):
           raise
 
       # Stop the TFNode data feed
-      if FLAGS.input_mode == 'spark':
-        TFNode.terminate(ctx.mgr)
+      if FLAGS.input_mode == 'spark' and sv.should_stop():
+        tf_feed.terminate()
 
       # Stop the supervisor.  This also waits for service threads to finish.
       sv.stop()
