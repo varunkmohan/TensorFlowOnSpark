@@ -38,6 +38,8 @@ def map_fun(args, ctx):
   hidden_units = 128
   batch_size   = 100
 
+  use_hdfs = False
+
   # Get TF cluster and server instances
   cluster, server = TFNode.start_cluster_server(ctx, 1, args.rdma)
 
@@ -79,8 +81,11 @@ def map_fun(args, ctx):
     print_log(worker_num, "num_epochs: {0}".format(num_epochs))
 
     # Setup queue of TFRecord filenames
-    tf_record_pattern = os.path.join(path, 'part-*')
-    files = tf.gfile.Glob(tf_record_pattern)
+    if use_hdfs:
+      tf_record_pattern = os.path.join(path, 'part-*')
+      files = tf.gfile.Glob(tf_record_pattern)
+    else:
+      files = [os.path.join(path, f) for f in os.listdir(path) if f.startswith("part-")]
     queue_name = "file_queue"
 
     # split input files across workers, if specified
@@ -131,12 +136,15 @@ def map_fun(args, ctx):
       index = task_index if args.mode == "inference" else None
       workers = num_workers if args.mode == "inference" else None
 
-      if args.format == "csv":
+      if args.format == "csv": # don't care about this yet
         images = TFNode.hdfs_path(ctx, args.images)
         labels = TFNode.hdfs_path(ctx, args.labels)
         x, y_ = read_csv_examples(images, labels, 100, num_epochs, index, workers)
       elif args.format == "tfr":
-        images = TFNode.hdfs_path(ctx, args.images)
+        if use_hdfs:
+          images = TFNode.hdfs_path(ctx, args.images)
+        else:
+          images = args.images
         x, y_ = read_tfr_examples(images, 100, num_epochs, index, workers)
       else:
         raise("{0} format not supported for tf input mode".format(args.format))
@@ -168,7 +176,10 @@ def map_fun(args, ctx):
       init_op = tf.global_variables_initializer()
 
     # Create a "supervisor", which oversees the training process and stores model state into HDFS
-    logdir = TFNode.hdfs_path(ctx, args.model)
+    if use_hdfs:
+      logdir = TFNode.hdfs_path(ctx, args.model)
+    else:
+      logdir = args.model
     print("tensorflow model path: {0}".format(logdir))
     summary_writer = tf.summary.FileWriter("tensorboard_%d" %(worker_num), graph=tf.get_default_graph())
 
@@ -189,8 +200,11 @@ def map_fun(args, ctx):
                                global_step=global_step,
                                stop_grace_secs=300,
                                save_model_secs=0)
-      output_dir = TFNode.hdfs_path(ctx, args.output)
-      output_file = tf.gfile.Open("{0}/part-{1:05d}".format(output_dir, worker_num), mode='w')
+      if use_hdfs:
+        output_dir = TFNode.hdfs_path(ctx, args.output)
+        output_file = tf.gfile.Open("{0}/part-{1:05d}".format(output_dir, worker_num), mode='w')
+      else:
+        output_file = open("{0}/part-{1:05d}".format(args.output, worker_num), mode='w')
 
     # The supervisor takes care of session initialization, restoring from
     # a checkpoint, and closing when done or an error occurs.
