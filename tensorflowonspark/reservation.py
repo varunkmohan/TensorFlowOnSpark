@@ -103,6 +103,11 @@ class Server(MessageSocket):
     else:
       MessageSocket.send(self, sock, 'ERR')
 
+  def get_ip_address(self):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    return s.getsockname()[0]
+
   def start(self):
     """Start listener in a background thread"""
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -110,7 +115,8 @@ class Server(MessageSocket):
     server_sock.bind(('',0))
     server_sock.listen(1)
 
-    host = socket.gethostname()
+    #  host = socket.gethostname()
+    host = self.get_ip_address() # hostname may not be resolvable but IP address probably will be
     port = server_sock.getsockname()[1]
     addr = (host,port)
     logging.info("listening for reservations at {0}".format(addr))

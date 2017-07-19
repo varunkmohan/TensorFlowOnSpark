@@ -23,7 +23,8 @@ import mnist_dist
 
 sc = SparkContext(conf=SparkConf().setAppName("mnist_spark"))
 executors = sc._conf.get("spark.executor.instances")
-num_executors = int(executors) if executors is not None else 1
+#  num_executors = int(executors) if executors is not None else 1
+num_executors = 4 # hardcoded for now
 num_ps = 1
 
 parser = argparse.ArgumentParser()
