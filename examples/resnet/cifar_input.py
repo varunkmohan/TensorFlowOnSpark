@@ -52,7 +52,7 @@ def build_input(dataset, data_path, batch_size, mode, task_index, num_workers):
 
   if mode == 'train':
     num_files = len(data_files)
-    data_files = data_files[worker_num:num_files:num_workers]
+    data_files = data_files[task_index:num_files:num_workers]
 
   file_queue = tf.train.string_input_producer(data_files, shuffle=True)
   # Read examples from files in the filename queue.
