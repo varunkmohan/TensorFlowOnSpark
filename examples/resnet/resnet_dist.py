@@ -43,24 +43,29 @@ def train(hps, args, ctx):
   if job_name == "ps":
     server.join()
   elif job_name == "worker":
-    images, labels = cifar_input.build_input(
-        args.dataset, args.train_data_path, hps.batch_size, args.mode, task_index, num_workers)
-    model = resnet_model.ResNet(hps, images, labels, args.mode)
-    model.build_graph()
+    # Assigns ops to the local worker by default.
+    with tf.device(tf.train.replica_device_setter(
+        worker_device="/job:worker/task:%d" % task_index,
+        cluster=cluster)):
 
-    param_stats = tf.contrib.tfprof.model_analyzer.print_model_analysis(
-        tf.get_default_graph(),
-        tfprof_options=tf.contrib.tfprof.model_analyzer.
-            TRAINABLE_VARS_PARAMS_STAT_OPTIONS)
-    sys.stdout.write('total_params: %d\n' % param_stats.total_parameters)
+      images, labels = cifar_input.build_input(
+          args.dataset, args.train_data_path, hps.batch_size, args.mode, task_index, num_workers)
+      model = resnet_model.ResNet(hps, images, labels, args.mode)
+      model.build_graph()
 
-    tf.contrib.tfprof.model_analyzer.print_model_analysis(
-        tf.get_default_graph(),
-        tfprof_options=tf.contrib.tfprof.model_analyzer.FLOAT_OPS_OPTIONS)
+      param_stats = tf.contrib.tfprof.model_analyzer.print_model_analysis(
+          tf.get_default_graph(),
+          tfprof_options=tf.contrib.tfprof.model_analyzer.
+              TRAINABLE_VARS_PARAMS_STAT_OPTIONS)
+      sys.stdout.write('total_params: %d\n' % param_stats.total_parameters)
 
-    truth = tf.argmax(model.labels, axis=1)
-    predictions = tf.argmax(model.predictions, axis=1)
-    precision = tf.reduce_mean(tf.to_float(tf.equal(predictions, truth)))
+      tf.contrib.tfprof.model_analyzer.print_model_analysis(
+          tf.get_default_graph(),
+          tfprof_options=tf.contrib.tfprof.model_analyzer.FLOAT_OPS_OPTIONS)
+
+      truth = tf.argmax(model.labels, axis=1)
+      predictions = tf.argmax(model.predictions, axis=1)
+      precision = tf.reduce_mean(tf.to_float(tf.equal(predictions, truth)))
 
     summary_hook = tf.train.SummarySaverHook(
         save_steps=100,
