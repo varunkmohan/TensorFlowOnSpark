@@ -102,6 +102,7 @@ def train(hps, args, ctx):
           self._lrn_rate = 0.0001
 
     with tf.train.MonitoredTrainingSession(
+        master=server.target,
         is_chief=(task_index == 0),
         checkpoint_dir=args.log_root,
         hooks=[logging_hook, _LearningRateSetterHook()],
