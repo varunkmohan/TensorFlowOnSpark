@@ -37,10 +37,10 @@ parser.add_argument("-ed", "--eval_dir", help="Directory to keep eval outputs.")
 parser.add_argument("-ebc", "--eval_batch_count", help="Directory to keep eval outputs.", type=int, default=50)
 parser.add_argument("-eo", "--eval_once", help="Whether evaluate model only once.", type=bool, default=False)
 parser.add_argument("-lr", "--log_root", help="Directory to keep the checkpoints. Should be a parent directory of Flags.train_dir/eval_dir.", type=bool, default=False)
-args = parser.parse_args()
 parser.add_argument("-c", "--rdma", help="use rdma connection", default=False)
 parser.add_argument("-n", "--cluster_size", help="number of nodes in the cluster (for Spark Standalone)", type=int, default=num_executors)
 parser.add_argument("-tb", "--tensorboard", help="launch tensorboard process", action="store_true")
+args = parser.parse_args()
 print("args:",args)
 
 
