@@ -39,6 +39,9 @@ class ResNet(object):
   """ResNet model."""
 
   def __init__(self, hps, images, labels, mode):
+    self.__init__(hps, images, labels, mode, False, 0)
+
+  def __init__(self, hps, images, labels, mode, sync, num_workers):
     """ResNet constructor.
 
     Args:
@@ -46,11 +49,15 @@ class ResNet(object):
       images: Batches of images. [batch_size, image_size, image_size, 3]
       labels: Batches of labels. [batch_size, num_classes]
       mode: One of 'train' and 'eval'.
+      sync: Whether training should be done synchronously.
+      num_workers: Number of workers in replicated group.
     """
     self.hps = hps
     self._images = images
     self.labels = labels
     self.mode = mode
+    self.sync = sync
+    self.num_workers = num_workers
 
     self._extra_train_ops = []
 
@@ -137,6 +144,9 @@ class ResNet(object):
       optimizer = tf.train.GradientDescentOptimizer(self.lrn_rate)
     elif self.hps.optimizer == 'mom':
       optimizer = tf.train.MomentumOptimizer(self.lrn_rate, 0.9)
+
+    if self.sync:
+      optimizer = tf.SyncReplicasOptimizer(optimizer, replicas_to_aggregate=self.num_workers)
 
     apply_op = optimizer.apply_gradients(
         zip(grads, trainable_variables),
