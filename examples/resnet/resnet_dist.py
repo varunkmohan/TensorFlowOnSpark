@@ -50,7 +50,7 @@ def train(hps, args, ctx):
 
       images, labels = cifar_input.build_input(
           args.dataset, args.train_data_path, hps.batch_size, args.mode, task_index, num_workers)
-      model = resnet_model.ResNet(hps, images, labels, args.mode, args.sync, num_workers)
+      model = resnet_model.ResNet(hps, images, labels, args.mode, args.sync, num_workers, is_chief=(task_index == 0))
       model.build_graph()
 
       param_stats = tf.contrib.tfprof.model_analyzer.print_model_analysis(
@@ -105,7 +105,7 @@ def train(hps, args, ctx):
         master=server.target,
         is_chief=(task_index == 0),
         checkpoint_dir=args.log_root,
-        hooks=[logging_hook, _LearningRateSetterHook()],
+        hooks=[logging_hook, _LearningRateSetterHook()] + model.hooks,
         chief_only_hooks=[summary_hook],
         # Since we provide a SummarySaverHook, we need to disable default
         # SummarySaverHook. To do that we set save_summaries_steps to 0.

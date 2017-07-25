@@ -38,10 +38,7 @@ HParams = namedtuple('HParams',
 class ResNet(object):
   """ResNet model."""
 
-  def __init__(self, hps, images, labels, mode):
-    self.__init__(hps, images, labels, mode, False, 0)
-
-  def __init__(self, hps, images, labels, mode, sync, num_workers):
+  def __init__(self, hps, images, labels, mode, sync=False, num_workers=1, is_chief=False):
     """ResNet constructor.
 
     Args:
@@ -58,6 +55,9 @@ class ResNet(object):
     self.mode = mode
     self.sync = sync
     self.num_workers = num_workers
+    self.is_chief = is_chief
+
+    self.hooks = []
 
     self._extra_train_ops = []
 
@@ -138,7 +138,7 @@ class ResNet(object):
     tf.summary.scalar('learning_rate', self.lrn_rate)
 
     trainable_variables = tf.trainable_variables()
-    grads = tf.gradients(self.cost, trainable_variables)
+    # grads = tf.gradients(self.cost, trainable_variables)
 
     if self.hps.optimizer == 'sgd':
       optimizer = tf.train.GradientDescentOptimizer(self.lrn_rate)
@@ -147,8 +147,9 @@ class ResNet(object):
 
     if self.sync:
       optimizer = tf.train.SyncReplicasOptimizer(optimizer, replicas_to_aggregate=self.num_workers)
+      self.hooks.append(optimizer.make_session_run_hook(is_chief))
 
-    apply_op = optimizer.minimize(self.cost, name='train_step')
+    apply_op = optimizer.minimize(self.cost, global_step=self.global_step, name='train_step')
     #  apply_op = optimizer.apply_gradients(
         #  zip(grads, trainable_variables),
         #  global_step=self.global_step, name='train_step')
