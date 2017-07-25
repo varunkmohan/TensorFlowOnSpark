@@ -38,7 +38,7 @@ HParams = namedtuple('HParams',
 class ResNet(object):
   """ResNet model."""
 
-  def __init__(self, hps, images, labels, mode, sync=False, num_workers=1, is_chief=False):
+  def __init__(self, hps, images, labels, mode, sync=False, num_workers=1, is_chief=True):
     """ResNet constructor.
 
     Args:
@@ -147,7 +147,7 @@ class ResNet(object):
 
     if self.sync:
       optimizer = tf.train.SyncReplicasOptimizer(optimizer, replicas_to_aggregate=self.num_workers)
-      self.hooks.append(optimizer.make_session_run_hook(is_chief))
+      self.hooks.append(optimizer.make_session_run_hook(self.is_chief))
 
     apply_op = optimizer.minimize(self.cost, global_step=self.global_step, name='train_step')
     #  apply_op = optimizer.apply_gradients(
