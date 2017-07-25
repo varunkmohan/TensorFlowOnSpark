@@ -146,11 +146,12 @@ class ResNet(object):
       optimizer = tf.train.MomentumOptimizer(self.lrn_rate, 0.9)
 
     if self.sync:
-      optimizer = tf.SyncReplicasOptimizer(optimizer, replicas_to_aggregate=self.num_workers)
+      optimizer = tf.train.SyncReplicasOptimizer(optimizer, replicas_to_aggregate=self.num_workers)
 
-    apply_op = optimizer.apply_gradients(
-        zip(grads, trainable_variables),
-        global_step=self.global_step, name='train_step')
+    apply_op = optimizer.minimize(self.cost, name='train_step')
+    #  apply_op = optimizer.apply_gradients(
+        #  zip(grads, trainable_variables),
+        #  global_step=self.global_step, name='train_step')
 
     train_ops = [apply_op] + self._extra_train_ops
     self.train_op = tf.group(*train_ops)
